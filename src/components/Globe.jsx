@@ -1,415 +1,657 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 import { monuments } from '../data/monuments';
 import './Globe.css';
 
-const Globe = ({ onSelectMonument }) => {
-  const [hoveredMonument, setHoveredMonument] = useState(null);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-  const containerRef = useRef(null);
+/* ═══════════════════════════════════════════
+   DONNÉES PAYS — nom, capitale, lat, lng
+   ═══════════════════════════════════════════ */
+const COUNTRIES = [
+  { name: 'France',          capital: 'Paris',          lat: 48.85,  lng:   2.35 },
+  { name: 'Royaume-Uni',     capital: 'Londres',        lat: 51.50,  lng:  -0.12 },
+  { name: 'Allemagne',       capital: 'Berlin',         lat: 52.52,  lng:  13.40 },
+  { name: 'Italie',          capital: 'Rome',           lat: 41.90,  lng:  12.49 },
+  { name: 'Espagne',         capital: 'Madrid',         lat: 40.41,  lng:  -3.70 },
+  { name: 'Portugal',        capital: 'Lisbonne',       lat: 38.71,  lng:  -9.14 },
+  { name: 'Russie',          capital: 'Moscou',         lat: 55.75,  lng:  37.61 },
+  { name: 'Ukraine',         capital: 'Kyiv',           lat: 50.45,  lng:  30.52 },
+  { name: 'Pologne',         capital: 'Varsovie',       lat: 52.22,  lng:  21.01 },
+  { name: 'Suède',           capital: 'Stockholm',      lat: 59.33,  lng:  18.06 },
+  { name: 'Norvège',         capital: 'Oslo',           lat: 59.91,  lng:  10.75 },
+  { name: 'Pays-Bas',        capital: 'Amsterdam',      lat: 52.37,  lng:   4.90 },
+  { name: 'Belgique',        capital: 'Bruxelles',      lat: 50.85,  lng:   4.35 },
+  { name: 'Suisse',          capital: 'Berne',          lat: 46.94,  lng:   7.44 },
+  { name: 'Autriche',        capital: 'Vienne',         lat: 48.21,  lng:  16.37 },
+  { name: 'Grèce',           capital: 'Athènes',        lat: 37.97,  lng:  23.72 },
+  { name: 'Turquie',         capital: 'Ankara',         lat: 39.92,  lng:  32.85 },
+  { name: 'États-Unis',      capital: 'Washington D.C.',lat: 38.89,  lng: -77.03 },
+  { name: 'Canada',          capital: 'Ottawa',         lat: 45.42,  lng: -75.69 },
+  { name: 'Mexique',         capital: 'Mexico',         lat: 19.43,  lng: -99.13 },
+  { name: 'Brésil',          capital: 'Brasília',       lat: -15.78, lng: -47.93 },
+  { name: 'Argentine',       capital: 'Buenos Aires',   lat: -34.61, lng: -58.38 },
+  { name: 'Colombie',        capital: 'Bogotá',         lat:  4.71,  lng: -74.07 },
+  { name: 'Pérou',           capital: 'Lima',           lat: -12.04, lng: -77.03 },
+  { name: 'Chili',           capital: 'Santiago',       lat: -33.46, lng: -70.65 },
+  { name: 'Venezuela',       capital: 'Caracas',        lat: 10.48,  lng: -66.87 },
+  { name: 'Chine',           capital: 'Pékin',          lat: 39.91,  lng: 116.38 },
+  { name: 'Japon',           capital: 'Tokyo',          lat: 35.68,  lng: 139.69 },
+  { name: 'Inde',            capital: 'New Delhi',      lat: 28.61,  lng:  77.20 },
+  { name: 'Corée du Sud',    capital: 'Séoul',          lat: 37.57,  lng: 126.98 },
+  { name: 'Indonésie',       capital: 'Jakarta',        lat: -6.21,  lng: 106.84 },
+  { name: 'Australie',       capital: 'Canberra',       lat: -35.28, lng: 149.13 },
+  { name: 'Arabie Saoudite', capital: 'Riyad',          lat: 24.68,  lng:  46.72 },
+  { name: 'Iran',            capital: 'Téhéran',        lat: 35.69,  lng:  51.42 },
+  { name: 'Pakistan',        capital: 'Islamabad',      lat: 33.72,  lng:  73.06 },
+  { name: 'Bangladesh',      capital: 'Dacca',          lat: 23.72,  lng:  90.41 },
+  { name: 'Thaïlande',       capital: 'Bangkok',        lat: 13.75,  lng: 100.50 },
+  { name: 'Vietnam',         capital: 'Hanoï',          lat: 21.03,  lng: 105.85 },
+  { name: 'Philippines',     capital: 'Manille',        lat: 14.59,  lng: 120.98 },
+  { name: 'Égypte',          capital: 'Le Caire',       lat: 30.04,  lng:  31.24 },
+  { name: 'Nigéria',         capital: 'Abuja',          lat:  9.07,  lng:   7.40 },
+  { name: 'Éthiopie',        capital: 'Addis-Abeba',    lat:  9.03,  lng:  38.74 },
+  { name: 'Afrique du Sud',  capital: 'Pretoria',       lat: -25.74, lng:  28.19 },
+  { name: 'Kenya',           capital: 'Nairobi',        lat: -1.29,  lng:  36.82 },
+  { name: 'Ghana',           capital: 'Accra',          lat:  5.55,  lng:  -0.20 },
+  { name: 'Togo',            capital: 'Lomé',           lat:  6.13,  lng:   1.22 },
+  { name: 'Bénin',           capital: 'Porto-Novo',     lat:  6.37,  lng:   2.42 },
+  { name: 'Sénégal',         capital: 'Dakar',          lat: 14.69,  lng: -17.44 },
+  { name: 'Côte d\'Ivoire',  capital: 'Yamoussoukro',   lat:  6.82,  lng:  -5.27 },
+  { name: 'Cameroun',        capital: 'Yaoundé',        lat:  3.86,  lng:  11.52 },
+  { name: 'Congo (RDC)',     capital: 'Kinshasa',       lat: -4.32,  lng:  15.32 },
+  { name: 'Tanzanie',        capital: 'Dodoma',         lat: -6.17,  lng:  35.74 },
+  { name: 'Mozambique',      capital: 'Maputo',         lat: -25.97, lng:  32.59 },
+  { name: 'Madagascar',      capital: 'Antananarivo',   lat: -18.91, lng:  47.54 },
+  { name: 'Maroc',           capital: 'Rabat',          lat: 34.02,  lng:  -6.83 },
+  { name: 'Algérie',         capital: 'Alger',          lat: 36.74,  lng:   3.06 },
+  { name: 'Tunisie',         capital: 'Tunis',          lat: 36.82,  lng:  10.17 },
+  { name: 'Libye',           capital: 'Tripoli',        lat: 32.90,  lng:  13.18 },
+  { name: 'Soudan',          capital: 'Khartoum',       lat: 15.55,  lng:  32.53 },
+  { name: 'Angola',          capital: 'Luanda',         lat: -8.84,  lng:  13.23 },
+  { name: 'Zambie',          capital: 'Lusaka',         lat: -15.42, lng:  28.28 },
+  { name: 'Zimbabwe',        capital: 'Harare',         lat: -17.83, lng:  31.05 },
+  { name: 'Nouvelle-Zélande',capital: 'Wellington',     lat: -41.29, lng: 174.78 },
+  { name: 'Irak',            capital: 'Bagdad',         lat: 33.34,  lng:  44.40 },
+  { name: 'Syrie',           capital: 'Damas',          lat: 33.51,  lng:  36.29 },
+  { name: 'Israël',          capital: 'Jérusalem',      lat: 31.77,  lng:  35.22 },
+  { name: 'Émirats arabes',  capital: 'Abou Dabi',      lat: 24.45,  lng:  54.38 },
+  { name: 'Kazakhstan',      capital: 'Astana',         lat: 51.18,  lng:  71.45 },
+  { name: 'Ouzbékistan',     capital: 'Tachkent',       lat: 41.30,  lng:  69.27 },
+  { name: 'Cuba',            capital: 'La Havane',      lat: 23.13,  lng: -82.38 },
+  { name: 'Haïti',           capital: 'Port-au-Prince', lat: 18.54,  lng: -72.34 },
+  { name: 'Bolivie',         capital: 'Sucre',          lat: -19.04, lng: -65.26 },
+  { name: 'Paraguay',        capital: 'Asunción',       lat: -25.28, lng: -57.64 },
+  { name: 'Uruguay',         capital: 'Montevideo',     lat: -34.90, lng: -56.19 },
+  { name: 'Équateur',        capital: 'Quito',          lat: -0.22,  lng: -78.52 },
+];
 
-  const handleMouseMove = useCallback((e, monument) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    setTooltipPos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
-    setHoveredMonument(monument);
+/* ═══════════════════════════════════════
+   UTILITAIRES GÉOMÉTRIQUES
+   ═══════════════════════════════════════ */
+const DEG = Math.PI / 180;
+
+function latLngToXYZ(lat, lng, r = 1) {
+  const phi = (90 - lat) * DEG;
+  const theta = (lng + 180) * DEG;
+  return {
+    x:  r * Math.sin(phi) * Math.cos(theta),
+    y:  r * Math.cos(phi),
+    z: -r * Math.sin(phi) * Math.sin(theta),
+  };
+}
+
+function projectPoint(x, y, z, rotX, rotY, cx, cy, R) {
+  // Rotation Y
+  const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+  const x1 =  x * cosY + z * sinY;
+  const z1 = -x * sinY + z * cosY;
+  // Rotation X
+  const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+  const y2 =  y * cosX - z1 * sinX;
+  const z2 =  y * sinX + z1 * cosX;
+  // Perspective
+  const scale = (2.2 * R) / (2.2 * R + z2 * R * 0.4);
+  return {
+    px: cx + x1 * R * scale,
+    py: cy - y2 * R * scale,
+    visible: z2 > -0.18,
+    depth: z2,
+  };
+}
+
+/* ═══════════════════════════════════════
+   CONTINENTS (polygones lon/lat simplifiés)
+   ═══════════════════════════════════════ */
+const CONTINENTS = [
+  {
+    name: 'europe',
+    color: '#1a3a5c',
+    highlight: '#2a5f96',
+    paths: [
+      // Europe principale
+      [[-10,36],[40,36],[40,71],[-10,71]],
+      // Scandinavie
+      [[5,56],[30,56],[30,71],[5,71]],
+    ],
+  },
+  {
+    name: 'africa',
+    color: '#1a3a1a',
+    highlight: '#2a6b2a',
+    paths: [
+      [[-18,37],[52,37],[52,-35],[-18,-35]],
+    ],
+  },
+  {
+    name: 'north_america',
+    color: '#2a1a3a',
+    highlight: '#4a2a6b',
+    paths: [
+      [[-170,72],[-50,72],[-50,15],[-170,15]],
+      [[-120,15],[-85,15],[-85,8],[-120,8]],
+    ],
+  },
+  {
+    name: 'south_america',
+    color: '#1a2a3a',
+    highlight: '#2a4a6b',
+    paths: [
+      [[-82,13],[-34,13],[-34,-56],[-82,-56]],
+    ],
+  },
+  {
+    name: 'asia',
+    color: '#2a1a1a',
+    highlight: '#6b2a2a',
+    paths: [
+      [[26,12],[145,12],[145,72],[26,72]],
+      [[60,-10],[145,-10],[145,12],[60,12]],
+    ],
+  },
+  {
+    name: 'oceania',
+    color: '#1a2a2a',
+    highlight: '#2a5a5a',
+    paths: [
+      [[113,-10],[154,-10],[154,-44],[113,-44]],
+      [[166,-34],[178,-34],[178,-47],[166,-47]],
+    ],
+  },
+];
+
+/* ═══════════════════════════════════════
+   COMPOSANT GLOBE
+   ═══════════════════════════════════════ */
+const Globe = ({ onSelectMonument }) => {
+  const canvasRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const isDragging = useRef(false);
+  const lastMouse = useRef({ x: 0, y: 0 });
+  const rotRef = useRef({ x: 0.3, y: -0.6 });
+  const velRef = useRef({ x: 0, y: 0.003 });
+  const autoRotate = useRef(true);
+
+  const [tooltip, setTooltip] = useState(null);
+  const [clickInfo, setClickInfo] = useState(null);
+  const [size, setSize] = useState(580);
+
+  /* Rayon du globe selon taille écran */
+  const R = useMemo(() => size * 0.38, [size]);
+  const CX = useMemo(() => size / 2, [size]);
+  const CY = useMemo(() => size / 2, [size]);
+
+  /* Responsive */
+  useEffect(() => {
+    const update = () => {
+      const w = Math.min(window.innerWidth - 40, 680);
+      setSize(Math.max(320, w));
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
 
+  /* ─── DRAW ─── */
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const { x: rotX, y: rotY } = rotRef.current;
+
+    ctx.clearRect(0, 0, size, size);
+
+    /* ── Fond spatial ── */
+    const bgGrad = ctx.createRadialGradient(CX, CY, R * 0.2, CX, CY, size * 0.8);
+    bgGrad.addColorStop(0, 'rgba(10,8,25,0)');
+    bgGrad.addColorStop(1, 'rgba(5,3,15,0)');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, size, size);
+
+    /* ── Globe base ── */
+    const earthGrad = ctx.createRadialGradient(
+      CX - R * 0.25, CY - R * 0.25, R * 0.05,
+      CX, CY, R
+    );
+    earthGrad.addColorStop(0,   '#1a3a6b');
+    earthGrad.addColorStop(0.4, '#0d2550');
+    earthGrad.addColorStop(0.8, '#071830');
+    earthGrad.addColorStop(1,   '#030d1e');
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+    ctx.fillStyle = earthGrad;
+    ctx.fill();
+
+    /* ── Grille lat/lon ── */
+    ctx.save();
+    ctx.strokeStyle = 'rgba(100,160,255,0.06)';
+    ctx.lineWidth = 0.5;
+    // Méridiens
+    for (let lng = -180; lng <= 180; lng += 20) {
+      ctx.beginPath();
+      let first = true;
+      for (let lat = -90; lat <= 90; lat += 3) {
+        const p = latLngToXYZ(lat, lng);
+        const { px, py, visible } = projectPoint(p.x, p.y, p.z, rotX, rotY, CX, CY, R);
+        if (visible) {
+          if (first) { ctx.moveTo(px, py); first = false; }
+          else ctx.lineTo(px, py);
+        } else { first = true; }
+      }
+      ctx.stroke();
+    }
+    // Parallèles
+    for (let lat = -80; lat <= 80; lat += 20) {
+      ctx.beginPath();
+      let first = true;
+      for (let lng = -180; lng <= 180; lng += 3) {
+        const p = latLngToXYZ(lat, lng);
+        const { px, py, visible } = projectPoint(p.x, p.y, p.z, rotX, rotY, CX, CY, R);
+        if (visible) {
+          if (first) { ctx.moveTo(px, py); first = false; }
+          else ctx.lineTo(px, py);
+        } else { first = true; }
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    /* ── Continents ── */
+    CONTINENTS.forEach(cont => {
+      cont.paths.forEach(poly => {
+        const step = 4;
+        const boundsLng = [
+          Math.min(...poly.map(p => p[0])),
+          Math.max(...poly.map(p => p[0]))
+        ];
+        const boundsLat = [
+          Math.min(...poly.map(p => p[1])),
+          Math.max(...poly.map(p => p[1]))
+        ];
+
+        // Dessiner en bandes horizontales (lat)
+        for (let lat = boundsLat[0]; lat <= boundsLat[1]; lat += step) {
+          ctx.beginPath();
+          let first = true;
+          for (let lng = boundsLng[0]; lng <= boundsLng[1]; lng += step) {
+            const p3d = latLngToXYZ(lat, lng);
+            const { px, py, visible } = projectPoint(p3d.x, p3d.y, p3d.z, rotX, rotY, CX, CY, R);
+            if (visible) {
+              if (first) { ctx.moveTo(px, py); first = false; }
+              else ctx.lineTo(px, py);
+            } else { first = true; }
+          }
+          ctx.strokeStyle = cont.color;
+          ctx.lineWidth = step * R / 100 * 1.1;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+      });
+    });
+
+    /* ── Équateur & Tropiques ── */
+    [[0,'rgba(201,162,39,0.18)'],[23.5,'rgba(201,100,39,0.1)'],[-23.5,'rgba(201,100,39,0.1)']].forEach(([lat, color]) => {
+      ctx.beginPath();
+      let first = true;
+      for (let lng = -180; lng <= 180; lng += 2) {
+        const p = latLngToXYZ(lat, lng);
+        const { px, py, visible } = projectPoint(p.x, p.y, p.z, rotX, rotY, CX, CY, R);
+        if (visible) {
+          if (first) { ctx.moveTo(px, py); first = false; }
+          else ctx.lineTo(px, py);
+        } else { first = true; }
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lat === 0 ? 1.2 : 0.7;
+      ctx.stroke();
+    });
+
+    /* ── Marqueurs PAYS ── */
+    const projCountries = COUNTRIES.map(c => {
+      const p3d = latLngToXYZ(c.lat, c.lng);
+      const proj = projectPoint(p3d.x, p3d.y, p3d.z, rotX, rotY, CX, CY, R);
+      return { ...c, ...proj };
+    }).filter(c => c.visible);
+
+    projCountries.forEach(c => {
+      // Petit point doré subtil
+      ctx.beginPath();
+      ctx.arc(c.px, c.py, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(201,162,39,0.5)';
+      ctx.fill();
+    });
+
+    /* ── Marqueurs MONUMENTS ── */
+    const projMonuments = monuments.map(m => {
+      const p3d = latLngToXYZ(
+        COUNTRIES.find(c => c.name === m.country)?.lat ?? 0,
+        COUNTRIES.find(c => c.name === m.country)?.lng ?? 0
+      );
+      const proj = projectPoint(p3d.x, p3d.y, p3d.z, rotX, rotY, CX, CY, R);
+      return { ...m, ...proj };
+    }).filter(m => m.visible);
+
+    projMonuments.forEach(m => {
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003 + m.id);
+      const r1 = 5 + pulse * 4;
+
+      // Anneau pulsant
+      ctx.beginPath();
+      ctx.arc(m.px, m.py, r1, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(240,208,96,${0.25 + pulse * 0.2})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Point central lumineux
+      const grad = ctx.createRadialGradient(m.px, m.py, 0, m.px, m.py, 6);
+      grad.addColorStop(0,   'rgba(255,230,100,1)');
+      grad.addColorStop(0.4, 'rgba(201,162,39,0.9)');
+      grad.addColorStop(1,   'rgba(201,100,20,0)');
+      ctx.beginPath();
+      ctx.arc(m.px, m.py, 6, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    });
+
+    /* ── Atmosphère ── */
+    const atmoGrad = ctx.createRadialGradient(CX, CY, R * 0.96, CX, CY, R * 1.12);
+    atmoGrad.addColorStop(0,   'rgba(80,140,255,0.18)');
+    atmoGrad.addColorStop(0.5, 'rgba(60,100,200,0.07)');
+    atmoGrad.addColorStop(1,   'rgba(20,50,150,0)');
+    ctx.beginPath();
+    ctx.arc(CX, CY, R * 1.12, 0, Math.PI * 2);
+    ctx.fillStyle = atmoGrad;
+    ctx.fill();
+
+    /* ── Reflet brillant ── */
+    const shineGrad = ctx.createRadialGradient(
+      CX - R * 0.35, CY - R * 0.35, 0,
+      CX - R * 0.2,  CY - R * 0.2,  R * 0.6
+    );
+    shineGrad.addColorStop(0,   'rgba(200,230,255,0.12)');
+    shineGrad.addColorStop(0.5, 'rgba(150,200,255,0.04)');
+    shineGrad.addColorStop(1,   'rgba(100,160,255,0)');
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+    ctx.fillStyle = shineGrad;
+    ctx.fill();
+
+    /* ── Ombre portée bas ── */
+    const shadowGrad = ctx.createRadialGradient(CX, CY + R * 1.05, R * 0.1, CX, CY + R * 1.05, R * 0.7);
+    shadowGrad.addColorStop(0,   'rgba(0,0,0,0.35)');
+    shadowGrad.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.ellipse(CX, CY + R * 1.05, R * 0.65, R * 0.12, 0, 0, Math.PI * 2);
+    ctx.fillStyle = shadowGrad;
+    ctx.fill();
+
+  }, [size, R, CX, CY]);
+
+  /* ─── BOUCLE ANIMATION ─── */
+  useEffect(() => {
+    const loop = () => {
+      if (autoRotate.current && !isDragging.current) {
+        rotRef.current.y += velRef.current.y;
+        rotRef.current.x += velRef.current.x * 0.1;
+      } else if (!isDragging.current && (Math.abs(velRef.current.x) > 0.0001 || Math.abs(velRef.current.y) > 0.0001)) {
+        rotRef.current.x += velRef.current.x;
+        rotRef.current.y += velRef.current.y;
+        velRef.current.x *= 0.95;
+        velRef.current.y *= 0.95;
+      }
+      draw();
+      animFrameRef.current = requestAnimationFrame(loop);
+    };
+    animFrameRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [draw]);
+
+  /* ─── TROUVER ÉLÉMENT AU CLIC / HOVER ─── */
+  const findNearest = useCallback((clientX, clientY, canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+    const { x: rotX, y: rotY } = rotRef.current;
+
+    let bestMonument = null, bestMDist = 18;
+    let bestCountry  = null, bestCDist  = 22;
+
+    // Chercher monument
+    monuments.forEach(m => {
+      const country = COUNTRIES.find(c => c.name === m.country);
+      if (!country) return;
+      const p3d = latLngToXYZ(country.lat, country.lng);
+      const { px, py, visible } = projectPoint(p3d.x, p3d.y, p3d.z, rotX, rotY, CX, CY, R);
+      if (!visible) return;
+      const d = Math.hypot(px - mx, py - my);
+      if (d < bestMDist) { bestMDist = d; bestMonument = m; }
+    });
+
+    // Chercher pays
+    COUNTRIES.forEach(c => {
+      const p3d = latLngToXYZ(c.lat, c.lng);
+      const { px, py, visible } = projectPoint(p3d.x, p3d.y, p3d.z, rotX, rotY, CX, CY, R);
+      if (!visible) return;
+      const d = Math.hypot(px - mx, py - my);
+      if (d < bestCDist) { bestCDist = d; bestCountry = c; }
+    });
+
+    return { monument: bestMonument, country: bestCountry, mx, my };
+  }, [CX, CY, R]);
+
+  /* ─── SOURIS — MOVE ─── */
+  const handleMouseMove = useCallback((e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (isDragging.current) {
+      const dx = e.clientX - lastMouse.current.x;
+      const dy = e.clientY - lastMouse.current.y;
+      velRef.current.y = dx * 0.008;
+      velRef.current.x = dy * 0.008;
+      rotRef.current.y += dx * 0.008;
+      rotRef.current.x += dy * 0.008;
+      lastMouse.current = { x: e.clientX, y: e.clientY };
+      setTooltip(null);
+      return;
+    }
+
+    const { monument, country } = findNearest(e.clientX, e.clientY, canvas);
+    const rect = canvas.getBoundingClientRect();
+
+    if (monument) {
+      setTooltip({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        type: 'monument',
+        data: monument,
+      });
+      canvas.style.cursor = 'pointer';
+    } else if (country) {
+      setTooltip({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        type: 'country',
+        data: country,
+      });
+      canvas.style.cursor = 'pointer';
+    } else {
+      setTooltip(null);
+      canvas.style.cursor = isDragging.current ? 'grabbing' : 'grab';
+    }
+  }, [findNearest]);
+
+  /* ─── SOURIS — DOWN ─── */
+  const handleMouseDown = useCallback((e) => {
+    isDragging.current = true;
+    autoRotate.current = false;
+    velRef.current = { x: 0, y: 0 };
+    lastMouse.current = { x: e.clientX, y: e.clientY };
+    canvasRef.current.style.cursor = 'grabbing';
+  }, []);
+
+  /* ─── SOURIS — UP ─── */
+  const handleMouseUp = useCallback((e) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    canvasRef.current.style.cursor = 'grab';
+
+    setTimeout(() => {
+      if (!isDragging.current && Math.abs(velRef.current.y) < 0.001) {
+        autoRotate.current = true;
+      }
+    }, 800);
+  }, []);
+
+  /* ─── SOURIS — LEAVE ─── */
   const handleMouseLeave = useCallback(() => {
-    setHoveredMonument(null);
+    isDragging.current = false;
+    setTooltip(null);
+    setTimeout(() => { autoRotate.current = true; }, 1200);
+  }, []);
+
+  /* ─── CLIC ─── */
+  const handleClick = useCallback((e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { monument, country } = findNearest(e.clientX, e.clientY, canvas);
+
+    if (monument) {
+      onSelectMonument(monument);
+      setClickInfo(null);
+    } else if (country) {
+      const rect = canvas.getBoundingClientRect();
+      setClickInfo({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        country,
+      });
+      setTimeout(() => setClickInfo(null), 3500);
+    }
+  }, [findNearest, onSelectMonument]);
+
+  /* ─── TOUCH ─── */
+  const handleTouchStart = useCallback((e) => {
+    isDragging.current = true;
+    autoRotate.current = false;
+    velRef.current = { x: 0, y: 0 };
+    lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isDragging.current) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - lastMouse.current.x;
+    const dy = e.touches[0].clientY - lastMouse.current.y;
+    velRef.current.y = dx * 0.008;
+    velRef.current.x = dy * 0.008;
+    rotRef.current.y += dx * 0.008;
+    rotRef.current.x += dy * 0.008;
+    lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false;
+    setTimeout(() => { autoRotate.current = true; }, 1500);
   }, []);
 
   return (
-    <div className="globe-scene" ref={containerRef}>
-      {/* Main SVG — African figure holding the Earth */}
-      <svg
-        className="atlas-svg"
-        viewBox="0 0 600 700"
-        xmlns="http://www.w3.org/2000/svg"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <defs>
-          {/* Earth gradient */}
-          <radialGradient id="earthGrad" cx="45%" cy="35%" r="60%">
-            <stop offset="0%" stopColor="#3a7bd5" />
-            <stop offset="30%" stopColor="#1a5fa8" />
-            <stop offset="70%" stopColor="#0d3d6e" />
-            <stop offset="100%" stopColor="#061e38" />
-          </radialGradient>
+    <div className="globe-scene">
+      <canvas
+        ref={canvasRef}
+        width={size}
+        height={size}
+        className="globe-canvas"
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      />
 
-          {/* Land mass color */}
-          <radialGradient id="landGrad" cx="50%" cy="30%" r="60%">
-            <stop offset="0%" stopColor="#5a9e3a" />
-            <stop offset="60%" stopColor="#2d6e1a" />
-            <stop offset="100%" stopColor="#1a4a0a" />
-          </radialGradient>
-
-          {/* Atmosphere glow */}
-          <radialGradient id="atmosphereGrad" cx="45%" cy="35%" r="55%">
-            <stop offset="70%" stopColor="transparent" />
-            <stop offset="100%" stopColor="rgba(100,160,255,0.35)" />
-          </radialGradient>
-
-          {/* Skin tone gradient for figure */}
-          <linearGradient id="skinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#4a2800" />
-            <stop offset="40%" stopColor="#3d1f00" />
-            <stop offset="100%" stopColor="#2a1200" />
-          </linearGradient>
-
-          {/* Muscle highlight */}
-          <radialGradient id="muscleHighlight" cx="30%" cy="25%" r="70%">
-            <stop offset="0%" stopColor="rgba(120,60,0,0.8)" />
-            <stop offset="100%" stopColor="rgba(40,15,0,0)" />
-          </radialGradient>
-
-          {/* Gold accent gradient */}
-          <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#c9a227" />
-            <stop offset="50%" stopColor="#f0d060" />
-            <stop offset="100%" stopColor="#a07820" />
-          </linearGradient>
-
-          {/* Globe shadow */}
-          <radialGradient id="globeShadow" cx="60%" cy="60%" r="50%">
-            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
-            <stop offset="100%" stopColor="rgba(0,0,20,0.6)" />
-          </radialGradient>
-
-          {/* Glow filter */}
-          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* Soft shadow */}
-          <filter id="softShadow" x="-10%" y="-10%" width="120%" height="130%">
-            <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="rgba(0,0,0,0.7)" />
-          </filter>
-
-          {/* Earth clip circle */}
-          <clipPath id="earthClip">
-            <circle cx="300" cy="195" r="155" />
-          </clipPath>
-
-          {/* Monument marker pulse */}
-          <filter id="markerGlow">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* ===================== */}
-        {/*   AFRICAN FIGURE      */}
-        {/* ===================== */}
-
-        {/* Base platform / rock */}
-        <ellipse cx="300" cy="680" rx="130" ry="22" fill="rgba(20,12,5,0.7)" />
-        <path
-          d="M200 670 Q225 640 250 650 Q275 635 300 645 Q325 635 350 650 Q375 640 400 670 Q380 690 300 695 Q220 690 200 670Z"
-          fill="url(#skinGrad)"
-          opacity="0.4"
-        />
-
-        {/* LEGS */}
-        {/* Left leg */}
-        <path
-          d="M265 580 Q258 610 255 640 Q252 660 258 675 Q265 680 275 675 Q285 670 283 655 Q280 635 282 610 Q282 592 278 580Z"
-          fill="url(#skinGrad)"
-          filter="url(#softShadow)"
-        />
-        {/* Left leg highlight */}
-        <path
-          d="M268 585 Q263 615 262 640 Q261 655 264 665 Q268 665 270 655 Q270 635 272 610Z"
-          fill="rgba(120,60,0,0.3)"
-        />
-        {/* Left knee cap */}
-        <ellipse cx="268" cy="620" rx="12" ry="9" fill="rgba(80,35,0,0.5)" />
-
-        {/* Right leg */}
-        <path
-          d="M335 580 Q342 610 345 640 Q348 660 342 675 Q335 680 325 675 Q315 670 317 655 Q320 635 318 610 Q318 592 322 580Z"
-          fill="url(#skinGrad)"
-          filter="url(#softShadow)"
-        />
-        {/* Right leg highlight */}
-        <path
-          d="M332 585 Q337 615 338 640 Q339 655 336 665 Q332 665 330 655 Q330 635 328 610Z"
-          fill="rgba(120,60,0,0.3)"
-        />
-        {/* Right knee cap */}
-        <ellipse cx="332" cy="620" rx="12" ry="9" fill="rgba(80,35,0,0.5)" />
-
-        {/* Feet */}
-        <path d="M252 673 Q244 678 240 682 Q248 688 262 686 Q272 682 278 675 Q268 672 252 673Z" fill="url(#skinGrad)" />
-        <path d="M348 673 Q356 678 360 682 Q352 688 338 686 Q328 682 322 675 Q332 672 348 673Z" fill="url(#skinGrad)" />
-
-        {/* TORSO */}
-        <path
-          d="M250 560 Q245 545 248 520 Q250 495 260 480 Q275 465 300 462 Q325 465 340 480 Q350 495 352 520 Q355 545 350 560 Q340 575 300 580 Q260 575 250 560Z"
-          fill="url(#skinGrad)"
-          filter="url(#softShadow)"
-        />
-        {/* Muscle definition — abs */}
-        <path d="M288 495 Q300 490 312 495 L312 510 Q300 505 288 510Z" fill="rgba(30,10,0,0.25)" />
-        <path d="M288 515 Q300 510 312 515 L312 530 Q300 525 288 530Z" fill="rgba(30,10,0,0.25)" />
-        <path d="M288 535 Q300 530 312 535 L312 550 Q300 545 288 550Z" fill="rgba(30,10,0,0.25)" />
-        {/* Central line */}
-        <path d="M300 472 Q300 560" stroke="rgba(20,5,0,0.3)" strokeWidth="1.5" fill="none" />
-        {/* Pec muscles */}
-        <path d="M265 472 Q285 467 300 468 Q295 475 280 480 Q268 480 265 472Z" fill="rgba(80,35,0,0.4)" />
-        <path d="M335 472 Q315 467 300 468 Q305 475 320 480 Q332 480 335 472Z" fill="rgba(80,35,0,0.4)" />
-        {/* Torso highlight */}
-        <path d="M290 465 Q305 460 315 468 Q305 470 295 468Z" fill="rgba(160,80,0,0.3)" />
-
-        {/* NECK */}
-        <path d="M285 463 Q290 448 300 445 Q310 448 315 463 Q305 466 300 466 Q295 466 285 463Z" fill="url(#skinGrad)" />
-
-        {/* HEAD */}
-        <ellipse cx="300" cy="428" rx="38" ry="42" fill="url(#skinGrad)" filter="url(#softShadow)" />
-        {/* Hair / head top */}
-        <path d="M268 415 Q275 390 300 385 Q325 390 332 415 Q318 405 300 403 Q282 405 268 415Z" fill="rgba(10,5,0,0.9)" />
-        {/* Face features */}
-        {/* Brow ridge */}
-        <path d="M282 420 Q292 416 300 417 Q308 416 318 420" stroke="rgba(10,5,0,0.5)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-        {/* Eyes */}
-        <ellipse cx="289" cy="425" rx="5" ry="4" fill="rgba(5,2,0,0.85)" />
-        <ellipse cx="311" cy="425" rx="5" ry="4" fill="rgba(5,2,0,0.85)" />
-        {/* Eye whites */}
-        <ellipse cx="288" cy="424" rx="2" ry="1.5" fill="rgba(255,240,210,0.7)" />
-        <ellipse cx="310" cy="424" rx="2" ry="1.5" fill="rgba(255,240,210,0.7)" />
-        {/* Nose */}
-        <path d="M297 428 Q298 436 300 438 Q302 436 303 428" stroke="rgba(20,8,0,0.5)" strokeWidth="1.5" fill="none" />
-        <path d="M294 438 Q300 442 306 438" stroke="rgba(20,8,0,0.5)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-        {/* Lips */}
-        <path d="M291 445 Q296 442 300 443 Q304 442 309 445 Q305 450 300 451 Q295 450 291 445Z" fill="rgba(60,20,10,0.7)" />
-        {/* Jaw */}
-        <path d="M268 430 Q265 445 268 458 Q278 468 300 470 Q322 468 332 458 Q335 445 332 430" stroke="rgba(30,12,0,0.2)" strokeWidth="1" fill="none" />
-        {/* Cheekbones */}
-        <path d="M265 430 Q272 425 280 428" stroke="rgba(80,35,0,0.2)" strokeWidth="1" fill="none" />
-        <path d="M335 430 Q328 425 320 428" stroke="rgba(80,35,0,0.2)" strokeWidth="1" fill="none" />
-
-        {/* SHOULDERS & ARMS — raised high holding globe */}
-        {/* Left shoulder */}
-        <path d="M250 478 Q230 468 215 455 Q205 445 205 430 Q210 420 220 422 Q228 440 240 452 Q255 463 260 472Z" fill="url(#skinGrad)" />
-        {/* Left upper arm */}
-        <path d="M215 425 Q200 400 192 370 Q188 350 195 335 Q205 325 218 330 Q225 355 228 380 Q230 405 228 425Z" fill="url(#skinGrad)" />
-        {/* Left forearm */}
-        <path d="M205 330 Q198 305 196 275 Q194 255 198 240 Q205 232 215 235 Q222 250 224 270 Q226 295 222 325Z" fill="url(#skinGrad)" />
-        {/* Left hand */}
-        <path d="M198 238 Q194 225 195 215 Q200 208 208 210 Q215 218 218 230 Q218 240 212 242Z" fill="url(#skinGrad)" />
-
-        {/* Right shoulder */}
-        <path d="M350 478 Q370 468 385 455 Q395 445 395 430 Q390 420 380 422 Q372 440 360 452 Q345 463 340 472Z" fill="url(#skinGrad)" />
-        {/* Right upper arm */}
-        <path d="M385 425 Q400 400 408 370 Q412 350 405 335 Q395 325 382 330 Q375 355 372 380 Q370 405 372 425Z" fill="url(#skinGrad)" />
-        {/* Right forearm */}
-        <path d="M395 330 Q402 305 404 275 Q406 255 402 240 Q395 232 385 235 Q378 250 376 270 Q374 295 378 325Z" fill="url(#skinGrad)" />
-        {/* Right hand */}
-        <path d="M402 238 Q406 225 405 215 Q400 208 392 210 Q385 218 382 230 Q382 240 388 242Z" fill="url(#skinGrad)" />
-
-        {/* Arm muscles highlights */}
-        <path d="M217 385 Q210 365 207 345" stroke="rgba(120,60,0,0.25)" strokeWidth="6" fill="none" strokeLinecap="round" />
-        <path d="M383 385 Q390 365 393 345" stroke="rgba(120,60,0,0.25)" strokeWidth="6" fill="none" strokeLinecap="round" />
-        {/* Bicep bulge left */}
-        <ellipse cx="218" cy="378" rx="12" ry="18" fill="rgba(80,35,0,0.3)" transform="rotate(-15, 218, 378)" />
-        {/* Bicep bulge right */}
-        <ellipse cx="382" cy="378" rx="12" ry="18" fill="rgba(80,35,0,0.3)" transform="rotate(15, 382, 378)" />
-
-        {/* Decorative bracelet / gold bands */}
-        <rect x="193" y="270" width="28" height="8" rx="4" fill="url(#goldAccent)" opacity="0.9" />
-        <rect x="379" y="270" width="28" height="8" rx="4" fill="url(#goldAccent)" opacity="0.9" />
-
-        {/* Loin cloth / fabric */}
-        <path d="M250 562 Q265 590 280 595 Q300 600 320 595 Q335 590 350 562 Q330 572 300 575 Q270 572 250 562Z" fill="rgba(80,50,10,0.8)" />
-        {/* Fabric folds */}
-        <path d="M265 568 Q270 585 275 592" stroke="rgba(40,25,5,0.5)" strokeWidth="1.5" fill="none" />
-        <path d="M300 570 Q300 588 300 595" stroke="rgba(40,25,5,0.5)" strokeWidth="1.5" fill="none" />
-        <path d="M335 568 Q330 585 325 592" stroke="rgba(40,25,5,0.5)" strokeWidth="1.5" fill="none" />
-        {/* Gold belt */}
-        <path d="M255 562 Q300 567 345 562 Q345 556 300 553 Q255 556 255 562Z" fill="url(#goldAccent)" opacity="0.85" />
-
-        {/* ===================== */}
-        {/*     THE EARTH GLOBE   */}
-        {/* ===================== */}
-
-        {/* Globe outer atmosphere glow */}
-        <circle cx="300" cy="195" r="168" fill="none" stroke="rgba(80,140,255,0.12)" strokeWidth="16" />
-        <circle cx="300" cy="195" r="162" fill="none" stroke="rgba(80,140,255,0.08)" strokeWidth="8" />
-
-        {/* Earth base */}
-        <circle cx="300" cy="195" r="155" fill="url(#earthGrad)" filter="url(#softShadow)" />
-
-        {/* Ocean texture */}
-        <circle cx="300" cy="195" r="155" fill="none" stroke="rgba(80,140,220,0.1)" strokeWidth="1" clipPath="url(#earthClip)" />
-
-        {/* === CONTINENTS (simplified SVG paths) === */}
-        <g clipPath="url(#earthClip)" fill="url(#landGrad)">
-
-          {/* EUROPE */}
-          <path d="M290 115 Q302 108 315 110 Q325 112 330 118 Q335 122 330 128 Q325 132 318 130 Q310 135 305 140 Q298 138 292 133 Q285 127 290 115Z" opacity="0.9" />
-
-          {/* SCANDINAVIA */}
-          <path d="M295 100 Q300 90 305 88 Q310 90 312 98 Q308 105 302 107 Q296 105 295 100Z" opacity="0.85" />
-          <path d="M305 92 Q308 82 312 80 Q316 83 315 90 Q311 96 307 95Z" opacity="0.8" />
-
-          {/* AFRICA — large continent, centered */}
-          <path d="M285 145 Q292 140 308 140 Q322 142 330 148 Q338 160 340 175 Q342 195 340 212 Q338 228 335 240 Q330 255 322 262 Q313 268 305 270 Q297 268 290 262 Q282 255 278 240 Q274 228 272 212 Q270 195 272 175 Q274 160 285 145Z" opacity="0.92" />
-          {/* Horn of Africa */}
-          <path d="M340 195 Q350 192 355 200 Q352 210 345 212 Q338 210 340 195Z" opacity="0.85" />
-          {/* Madagascar */}
-          <path d="M348 225 Q352 218 356 222 Q357 232 353 238 Q349 238 348 230Z" opacity="0.8" />
-
-          {/* SOUTH AMERICA */}
-          <path d="M218 155 Q228 148 240 150 Q250 155 252 165 Q254 180 252 200 Q250 218 245 235 Q238 250 228 258 Q220 260 215 255 Q208 248 208 235 Q206 215 208 195 Q210 175 218 155Z" opacity="0.9" />
-          {/* Brazil bump */}
-          <path d="M252 170 Q262 165 268 172 Q266 182 257 185 Q252 182 252 170Z" opacity="0.85" />
-
-          {/* NORTH AMERICA */}
-          <path d="M165 120 Q178 110 195 112 Q210 115 215 125 Q218 138 215 148 Q210 155 200 158 Q188 158 180 152 Q170 145 165 132 Q163 126 165 120Z" opacity="0.88" />
-          {/* Canada top */}
-          <path d="M172 108 Q182 98 195 98 Q208 100 210 108 Q205 115 195 115 Q183 113 172 108Z" opacity="0.8" />
-
-          {/* ASIA — large */}
-          <path d="M332 118 Q348 112 365 115 Q385 120 395 130 Q405 140 405 155 Q405 170 398 180 Q390 188 378 190 Q362 190 350 185 Q338 178 332 168 Q326 155 328 140 Q328 128 332 118Z" opacity="0.9" />
-          {/* Indian subcontinent */}
-          <path d="M360 188 Q370 185 378 192 Q382 202 378 215 Q372 222 364 220 Q357 215 358 205 Q358 195 360 188Z" opacity="0.88" />
-          {/* Southeast Asia */}
-          <path d="M395 178 Q405 172 412 178 Q415 188 410 195 Q403 198 397 192 Q395 185 395 178Z" opacity="0.82" />
-
-          {/* AUSTRALIA */}
-          <path d="M390 230 Q402 224 415 228 Q425 234 425 245 Q424 256 415 262 Q405 265 396 260 Q388 253 388 243 Q388 236 390 230Z" opacity="0.88" />
-
-          {/* GREENLAND */}
-          <path d="M228 88 Q238 80 248 82 Q256 86 255 96 Q250 104 241 105 Q232 103 228 96 Q226 91 228 88Z" opacity="0.8" />
-
-          {/* JAPAN */}
-          <path d="M408 148 Q413 143 418 146 Q420 152 416 157 Q412 158 408 154Z" opacity="0.8" />
-
-          {/* UK */}
-          <path d="M282 118 Q286 112 290 114 Q292 120 288 125 Q284 124 282 118Z" opacity="0.8" />
-
-          {/* ICE CAPS */}
-          <path d="M155 150 Q175 155 195 155 Q215 155 235 150 Q240 145 240 140 Q230 130 210 128 Q195 127 180 130 Q162 135 155 142 Q153 146 155 150Z" fill="rgba(200,230,255,0.5)" opacity="0.7" />
-          <path d="M230 248 Q250 252 270 255 Q270 262 260 268 Q248 272 235 270 Q220 266 215 258 Q218 252 230 248Z" fill="rgba(200,230,255,0.5)" opacity="0.6" />
-        </g>
-
-        {/* Globe shadow overlay */}
-        <circle cx="300" cy="195" r="155" fill="url(#globeShadow)" clipPath="url(#earthClip)" />
-
-        {/* Atmosphere highlight */}
-        <ellipse cx="265" cy="155" rx="55" ry="45" fill="rgba(180,210,255,0.07)" clipPath="url(#earthClip)" />
-
-        {/* Globe edge gleam */}
-        <path
-          d="M175 145 Q155 175 158 210 Q162 245 182 270"
-          stroke="rgba(180,220,255,0.2)"
-          strokeWidth="8"
-          fill="none"
-          strokeLinecap="round"
-          clipPath="url(#earthClip)"
-        />
-
-        {/* Orbit ring around globe */}
-        <ellipse
-          cx="300"
-          cy="195"
-          rx="178"
-          ry="28"
-          fill="none"
-          stroke="url(#goldAccent)"
-          strokeWidth="1.5"
-          strokeDasharray="8 5"
-          opacity="0.35"
-        />
-
-        {/* ===================== */}
-        {/*  MONUMENT MARKERS     */}
-        {/* ===================== */}
-        {monuments.map((m) => {
-          // Map globeX/Y (0-100) to actual SVG coords within the globe circle
-          // Globe center: 300, 195. Globe radius: 155
-          const angle = ((m.globeX - 50) / 50) * 0.85; // longitude-ish
-          const vAngle = ((m.globeY - 50) / 50) * 0.85; // latitude-ish
-          const mx = 300 + Math.sin(angle) * 145;
-          const my = 195 + Math.sin(vAngle) * 100 - Math.abs(Math.sin(angle)) * 30;
-
-          const isHovered = hoveredMonument?.id === m.id;
-
-          return (
-            <g
-              key={m.id}
-              transform={`translate(${mx}, ${my})`}
-              className="monument-marker"
-              onMouseMove={(e) => handleMouseMove(e, m)}
-              onMouseLeave={handleMouseLeave}
-              onClick={() => onSelectMonument(m)}
-              style={{ cursor: 'pointer' }}
-            >
-              {/* Pulse ring */}
-              <circle
-                r={isHovered ? 12 : 8}
-                fill="none"
-                stroke="rgba(201,162,39,0.4)"
-                strokeWidth="1"
-                className="marker-ring"
-              />
-              {/* Marker dot */}
-              <circle
-                r={isHovered ? 5 : 3.5}
-                fill={isHovered ? '#f0d060' : '#c9a227'}
-                filter="url(#markerGlow)"
-                className="marker-dot"
-              />
-              {/* Country label on hover */}
-              {isHovered && (
-                <text
-                  dy="-14"
-                  textAnchor="middle"
-                  fill="#f0d060"
-                  fontSize="8"
-                  fontFamily="Cormorant Garamond, serif"
-                  fontStyle="italic"
-                  className="marker-label"
-                >
-                  {m.country}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Tooltip */}
-      {hoveredMonument && (
+      {/* Tooltip hover */}
+      {tooltip && !clickInfo && (
         <div
           className="globe-tooltip"
-          style={{
-            left: tooltipPos.x + 18,
-            top: tooltipPos.y - 10,
-          }}
+          style={{ left: tooltip.x + 16, top: tooltip.y - 12 }}
         >
-          <div className="tooltip-flag">{hoveredMonument.continent === 'africa' ? '🌍' : hoveredMonument.continent === 'europe' ? '🌍' : '🌎'}</div>
-          <div className="tooltip-content">
-            <span className="tooltip-country">{hoveredMonument.country}</span>
-            <span className="tooltip-name">{hoveredMonument.name}</span>
-            <span className="tooltip-year">{hoveredMonument.year}</span>
-          </div>
-          <div className="tooltip-hint">Cliquer pour explorer</div>
+          {tooltip.type === 'monument' ? (
+            <>
+              <div className="tt-badge tt-badge--monument">Monument</div>
+              <div className="tt-name">{tooltip.data.name}</div>
+              <div className="tt-sub">{tooltip.data.country} · {tooltip.data.year}</div>
+              <div className="tt-hint">Cliquer pour explorer</div>
+            </>
+          ) : (
+            <>
+              <div className="tt-badge tt-badge--country">Pays</div>
+              <div className="tt-name">{tooltip.data.name}</div>
+              <div className="tt-sub">Capitale : {tooltip.data.capital}</div>
+              <div className="tt-hint">Cliquer pour plus d'infos</div>
+            </>
+          )}
         </div>
       )}
 
-      {/* Decorative label */}
-      <div className="globe-caption">
-        Survolez les marqueurs dorés pour découvrir les monuments
+      {/* Info pays au clic */}
+      {clickInfo && (
+        <div
+          className="globe-country-card"
+          style={{ left: clickInfo.x, top: clickInfo.y }}
+        >
+          <button className="country-card-close" onClick={() => setClickInfo(null)}>✕</button>
+          <div className="country-card-title">{clickInfo.country.name}</div>
+          <div className="country-card-row">
+            <span className="country-card-label">Capitale</span>
+            <span className="country-card-value">{clickInfo.country.capital}</span>
+          </div>
+          <div className="country-card-row">
+            <span className="country-card-label">Coordonnées</span>
+            <span className="country-card-value">
+              {clickInfo.country.lat.toFixed(2)}°N / {clickInfo.country.lng.toFixed(2)}°E
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Légende */}
+      <div className="globe-legend">
+        <span className="globe-legend-item">
+          <span className="globe-legend-dot globe-legend-dot--monument" />
+          Monuments
+        </span>
+        <span className="globe-legend-item">
+          <span className="globe-legend-dot globe-legend-dot--country" />
+          Pays
+        </span>
+        <span className="globe-legend-sep">·</span>
+        <span className="globe-legend-hint">Glisser pour tourner</span>
       </div>
     </div>
   );
