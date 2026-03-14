@@ -97,6 +97,7 @@ cd D:\PROJECTS\REACT
 npx create-react-app our-world
 cd our-world
 ```
+npm install topojson-client --legacy-peer-deps
 
 Cette opération prend 2 à 5 minutes selon votre connexion. Elle crée toute la structure de base React.
 
