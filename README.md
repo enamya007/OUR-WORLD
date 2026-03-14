@@ -110,21 +110,21 @@ del src\setupTests.js
 
 ---
 
-## 3. Configurer le port 7002
+## 3. Configurer le port 5000
 
 Ouvrez le fichier `package.json` à la racine du projet.
 Modifiez la section `"scripts"` comme suit :
 
 ```json
 "scripts": {
-  "start": "set PORT=7002 && react-scripts start",
+  "start": "set PORT=5000 && react-scripts start",
   "build": "react-scripts build",
   "test": "react-scripts test",
   "eject": "react-scripts eject"
 }
 ```
 
-Note : Sur Windows, la syntaxe est `set PORT=7002 &&`. Sur Mac/Linux, c'est simplement `PORT=7002`.
+Note : Sur Windows, la syntaxe est `set PORT=5000 &&`. Sur Mac/Linux, c'est simplement `PORT=5000`.
 
 ---
 
